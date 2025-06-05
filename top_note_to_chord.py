@@ -5,6 +5,7 @@ import os
 
 os.makedirs('svgs',exist_ok=True)
 
+TUNING = ["E", "A", "D", "G", "B", "E"]
 config = {
     "general": {
         "first_fret": 2,
@@ -67,6 +68,8 @@ for k,v in chord_tension_structures.items():
             chord_name = k
         chord = [ALL[(i-interval) % 12] for i in chord_tension_structures[chord_name]]
         container = fr.notes_creators.NotesContainer(root,chord)
+        fingerings = container.get_chord_fingerings(TUNING)
+
         fretboard.add_note(0, top)
         fretboard.add_notes(scale=container)
         fretboard.export(f"svgs/{k}_{i}.svg", format="svg")
