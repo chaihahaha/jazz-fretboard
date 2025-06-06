@@ -2,6 +2,8 @@ import fretboardgtr as fr
 from fretboardgtr.fretboard import FretBoard, FretBoardConfig
 from fretboardgtr.notes_creators import ScaleFromName
 import os
+import numpy as np
+from chord_difficulty_scorer import ChordDifficultyScorer
 
 os.makedirs('svgs',exist_ok=True)
 
@@ -69,7 +71,29 @@ for k,v in chord_tension_structures.items():
         chord = [ALL[(i-interval) % 12] for i in chord_tension_structures[chord_name]]
         container = fr.notes_creators.NotesContainer(root,chord)
         fingerings = container.get_chord_fingerings(TUNING)
+        cand_fgs_loss = dict()
+        for fg in fingerings:
+            fg_with_top = fg[:-1] + [5]
+            numbers = np.array([n for n in fg_with_top if n is not None])
+            if np.all(numbers>=3) and np.all(numbers<=9):
+                scorer = ChordDifficultyScorer(fg_with_top)
+                difficulty, _ = scorer.analyze()
+                cand_fgs_loss[tuple(fg_with_top)] = difficulty
+
+            #number_none = sum([n is None for n in fg_with_top])
+            #if number_none == 0:
+            #    numbers = np.array([n for n in fg_with_top if n is not None])
+            #    if np.all(numbers>=3) and np.all(numbers<=9):
+            #        min_n = np.min(numbers)
+            #        max_n = np.max(numbers)
+            #        range_pos = max_n - min_n
+            #        number_collinear = np.sum(numbers == min_n)
+            #        loss = 4*range_pos - number_collinear
+            #        cand_fgs_loss[tuple(fg_with_top)] = loss
+        best_fingering = min(cand_fgs_loss, key=lambda x:cand_fgs_loss[x])
+        print(k, best_fingering)
 
         fretboard.add_note(0, top)
-        fretboard.add_notes(scale=container)
+        #fretboard.add_notes(scale=container)
+        fretboard.add_fingering(list(best_fingering), root=root)
         fretboard.export(f"svgs/{k}_{i}.svg", format="svg")
