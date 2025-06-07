@@ -74,11 +74,13 @@ for k,v in chord_tension_structures.items():
         cand_fgs_loss = dict()
         for fg in fingerings:
             fg_with_top = fg[:-1] + [5]
+            number_none = sum([n is None for n in fg_with_top[2:]])
             numbers = np.array([n for n in fg_with_top if n is not None])
-            if np.all(numbers>=3) and np.all(numbers<=9):
+            if number_none == 0 and np.all(numbers>=3) and np.all(numbers<=8):
                 scorer = ChordDifficultyScorer(fg_with_top)
                 difficulty, _ = scorer.analyze()
-                cand_fgs_loss[tuple(fg_with_top)] = difficulty
+                if difficulty < 9999:
+                    cand_fgs_loss[tuple(fg_with_top)] = difficulty
 
             #number_none = sum([n is None for n in fg_with_top])
             #if number_none == 0:
@@ -90,10 +92,13 @@ for k,v in chord_tension_structures.items():
             #        number_collinear = np.sum(numbers == min_n)
             #        loss = 4*range_pos - number_collinear
             #        cand_fgs_loss[tuple(fg_with_top)] = loss
-        best_fingering = min(cand_fgs_loss, key=lambda x:cand_fgs_loss[x])
-        print(k, best_fingering)
+        if not cand_fgs_loss:
+            print(f'{k} search failed!')
+        else:
+            best_fingering = min(cand_fgs_loss, key=lambda x:cand_fgs_loss[x])
+            print(k, best_fingering)
 
-        fretboard.add_note(0, top)
-        #fretboard.add_notes(scale=container)
-        fretboard.add_fingering(list(best_fingering), root=root)
-        fretboard.export(f"svgs/{k}_{i}.svg", format="svg")
+            fretboard.add_note(0, top)
+            #fretboard.add_notes(scale=container)
+            fretboard.add_fingering(list(best_fingering), root=root)
+            fretboard.export(f"svgs/{k}_{i}.png", format="png")
