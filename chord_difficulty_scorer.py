@@ -1,6 +1,7 @@
 import math
 import numpy as np
 from itertools import combinations
+from collections import Counter
 
 class ChordDifficultyScorer:
     """
@@ -30,10 +31,12 @@ class ChordDifficultyScorer:
         available_fingers = [1, 2, 3, 4]
         notes_to_assign = dict(self.notes_to_fret)
         lowest_fret = min(notes_to_assign.values())
-        
+        counts_repeat = Counter(notes_to_assign.values())
+        barred_fret = max(counts_repeat, key=counts_repeat.get)
+
         # Hard Rule: No notes can be below the barre fret
-        if any(f < lowest_fret for f in notes_to_assign.values()):
-            return None, f"Impossible: Note on fret {min(notes_to_assign.values())} is blocked by barre on fret {lowest_fret}."
+        if counts_repeat[barred_fret] >= 4 and any(f < barred_fret for f in notes_to_assign.values()):
+            return None, f"Impossible: Note on fret {min(notes_to_assign.values())} is blocked by barre on fret {barred_fret}."
 
         index_finger = available_fingers.pop(0)
         anchor_strings = [s for s, f in notes_to_assign.items() if f == lowest_fret]

@@ -4,6 +4,7 @@ from fretboardgtr.notes_creators import ScaleFromName
 import os
 import numpy as np
 from chord_difficulty_scorer import ChordDifficultyScorer
+from collections import Counter
 
 os.makedirs('svgs',exist_ok=True)
 
@@ -50,6 +51,22 @@ base_chords = {
 "dom7aug":[0,4,8,10],
 }
 
+optional_notes = {
+"major":[0,7],
+"minor":[0,7],
+"dim":[0],
+"aug":[0],
+"major7":[0,7],
+"minor7":[0,7],
+"minor7flat5":[0],
+"minormajor7":[0],
+"major7aug":[0],
+"dim7":[0],
+"dom7":[0,7],
+"dom7sus":[0,7],
+"dom7aug":[0],
+}
+
 tension_notes = {
 "major":[1,2,3,5,6,8,9,10,11],
 "minor":[2,5,6,8,9,10],
@@ -77,32 +94,37 @@ NOTE_NAME = fr.constants.CHROMATICS_NOTES
 
 for chord_name, chord_notes_relroot in base_chords.items():
     for i, top_note_pos in enumerate(top_notes[chord_name]):
-        fretboard_config = FretBoardConfig.from_dict(config)
-        fretboard = FretBoard(config=fretboard_config)
-        top = NOTE_NAME[0]
-        root = NOTE_NAME[(-top_note_pos) % 12]
-        chord = [NOTE_NAME[(chord_note-top_note_pos) % 12] for chord_note in base_chords[chord_name]]
-        print(f'{chord_name} chord: ', chord, base_chords[chord_name])
-        container = fr.notes_creators.NotesContainer(root,chord)
-        fingerings = container.get_chord_fingerings(TUNING)
-        cand_fgs_loss = dict()
-        for fg in fingerings:
-            fg_with_top = fg[:-1] + [5]
-            number_none = sum([n is None for n in fg_with_top[2:]])
-            numbers = np.array([n for n in fg_with_top if n is not None])
-            if number_none == 0 and np.all(numbers>=3) and np.all(numbers<=8):
-                scorer = ChordDifficultyScorer(fg_with_top)
-                difficulty, _ = scorer.analyze()
-                if difficulty < 9999:
-                    cand_fgs_loss[tuple(fg_with_top)] = difficulty
-        if not cand_fgs_loss:
-            print(f'{chord_name} top note {top_note_pos} search failed!')
-        else:
-            best_fingering = min(cand_fgs_loss, key=lambda x:cand_fgs_loss[x])
-            print(chord_name, best_fingering)
+        for flag_optional in [False, True]:
+            top_to_root_interval = fr.constants.CHROMATICS_INTERVALS[top_note_pos]
+            fretboard_config = FretBoardConfig.from_dict(config)
+            fretboard = FretBoard(config=fretboard_config)
+            top = NOTE_NAME[0]
+            root = NOTE_NAME[(-top_note_pos) % 12]
+            chord_relroot = [chord_note for chord_note in base_chords[chord_name] if chord_note != top_note_pos]
+            if flag_optional:
+                chord_relroot = [chord_note for chord_note in chord_relroot if chord_note not in optional_notes[chord_name]]
 
-            fretboard.add_note(0, top)
-            #fretboard.add_notes(scale=container)
-            fretboard.add_fingering(list(best_fingering), root=root)
-            interval = fr.constants.CHROMATICS_INTERVALS[top_note_pos]
-            fretboard.export(f"svgs/{chord_name}_{interval}.png", format="png")
+            chord = [NOTE_NAME[(chord_note-top_note_pos) % 12] for chord_note in chord_relroot]
+
+            print(f'{chord_name} chord: ', chord, base_chords[chord_name])
+            container = fr.notes_creators.NotesContainer(root,chord)
+            fingerings = container.get_chord_fingerings(tuning=TUNING, max_spacing=3, min_notes_in_chord=2, number_of_fingers=4)
+            cand_fgs_loss = dict()
+            for fg in fingerings:
+                fg_with_top = fg[:-1] + [5]
+                numbers = np.array([n for n in fg_with_top if n is not None])
+                if np.all(numbers>=3) and np.all(numbers<=8):
+                    scorer = ChordDifficultyScorer(fg_with_top)
+                    difficulty, _ = scorer.analyze()
+                    if difficulty < 9999:
+                        cand_fgs_loss[tuple(fg_with_top)] = difficulty
+            if not cand_fgs_loss:
+                print(f'{chord_name} top note {top_to_root_interval} search failed!')
+            else:
+                best_fingering = min(cand_fgs_loss, key=lambda x:cand_fgs_loss[x])
+                print(chord_name, best_fingering)
+
+                fretboard.add_note(0, top)
+                #fretboard.add_notes(scale=container)
+                fretboard.add_fingering(list(best_fingering), root=root)
+                fretboard.export(f"svgs/{chord_name}_{top_to_root_interval}_{int(flag_optional)}.png", format="png")
