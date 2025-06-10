@@ -21,6 +21,7 @@ config = {
         "fretted_color_scale": True,
         "fretted_colors": {
             "root": "rgb(255,255,255)",
+            "diminished_fifth": "rgb(100,100,100)",
         },
         "open_colors": {
             "root": "rgb(255,255,255)",
@@ -108,12 +109,14 @@ for chord_name, chord_notes_relroot in base_chords.items():
 
             print(f'{chord_name} chord: ', chord, base_chords[chord_name])
             container = fr.notes_creators.NotesContainer(root,chord)
-            fingerings = container.get_chord_fingerings(tuning=TUNING, max_spacing=3, min_notes_in_chord=2, number_of_fingers=4)
+            fingerings = container.get_chord_fingerings(tuning=TUNING, max_spacing=4, min_notes_in_chord=2, number_of_fingers=4)
             cand_fgs_loss = dict()
             for fg in fingerings:
                 fg_with_top = fg[:-1] + [5]
                 numbers = np.array([n for n in fg_with_top if n is not None])
-                if np.all(numbers>=3) and np.all(numbers<=8):
+                # check for duplicate notes
+                counts = Counter([fr.utils.get_note_from_index(idx, TUNING[istring]) for istring, idx in enumerate(fg_with_top) if idx is not None])
+                if np.all(numbers>=3) and np.all(numbers<=8) and np.all(np.array(list(counts.values()))<3):
                     scorer = ChordDifficultyScorer(fg_with_top)
                     difficulty, _ = scorer.analyze()
                     if difficulty < 9999:
