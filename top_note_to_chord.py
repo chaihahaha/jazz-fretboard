@@ -137,14 +137,14 @@ for chord_name, chord_notes_relroot in base_chords.items():
                     if not is_optional_bad_fingering(chord_name, fg_with_top, optional_notes, root):
                         fg_none_cands.add(tuple(fg_with_top))
 
-                    if count_nones(fg_with_top) < 2:
+                    if count_nones(fg_with_top[:-1]) < 2:
                         fg_with_top[first_none] = None
                         if not is_optional_bad_fingering(chord_name, fg_with_top, optional_notes, root):
                             fg_none_cands.add(tuple(fg_with_top))
                     else:
                         continue
 
-                    if count_nones(fg_with_top) < 2:
+                    if count_nones(fg_with_top[:-1]) < 2:
                         fg_with_top[second_none] = None
                         if not is_optional_bad_fingering(chord_name, fg_with_top, optional_notes, root):
                             fg_none_cands.add(tuple(fg_with_top))
@@ -157,14 +157,14 @@ for chord_name, chord_notes_relroot in base_chords.items():
                 numbers = np.array([n for n in fg_with_top if n is not None])
                 if np.all(numbers>=3) and np.all(numbers<=8) and count_nones(fg_with_top) <= 3:
                     scorer = ChordDifficultyScorer(fg_with_top)
-                    difficulty, _ = scorer.analyze()
+                    difficulty, summarytext = scorer.analyze()
                     if difficulty < 9999:
                         cand_fgs_loss[tuple(fg_with_top)] = difficulty
-                    #if chord_name == 'major' and top_note_pos == 7:
+                    #if chord_name == 'major' and top_note_pos == 4 and list(fg_with_top)[-4:] == [7,5,6,5] and fg_with_top[0] == 5:
                     #    print('major fingering', fg)
-                    #    print('major chord', chord, chord_relroot, flag_optional)
-                    #if numbers[-4:].tolist() == [7,5,6,5]:
-                    #    print("################################", difficulty, numbers)
+                    #    print('major chord', chord, chord_relroot)
+                    #    print("################################", difficulty, fg_with_top)
+                    #    print(summarytext)
         if not cand_fgs_loss:
             print(f'{chord_name} top note {top_to_root_interval} search failed!')
             pass

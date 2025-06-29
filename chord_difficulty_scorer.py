@@ -6,12 +6,13 @@ from collections import Counter
 class ChordDifficultyScorer:
     """
     Analyzes a guitar chord fingering and assigns a difficulty score.
-    (Version 12 - With Internal Stretch Variance analysis)
+    (Version 13 - With Muted String Penalty)
     """
     WEIGHTS = {
         'FINGER_COUNT': 10, 'FRET_SPAN': 25, 'POSITION': 2, 'BARRE_BASE': 20,
         'BARRE_LENGTH': 10, 'FRET_INVERSION': 400,
-        'INTERNAL_STRETCH_VARIANCE': 300, # New, powerful penalty for hand contortion
+        'INTERNAL_STRETCH_VARIANCE': 300,
+        'MUTED_STRING': 200,  # Penalty for each string that is not played
         'IMPOSSIBLE_FINGERING': 10000
     }
     MAX_FRET_SPAN = 4
@@ -21,6 +22,7 @@ class ChordDifficultyScorer:
             raise ValueError("Fingering must be a list of 6 integers.")
         self.fingering = [f if f is not None else -1 for f in fingering]
         self.notes_to_fret = {i: f for i, f in enumerate(self.fingering) if f > 0}
+        self.barred_fret = min([f for f in fingering if f is not None])
 
     def _find_best_fingering(self):
         """Finds the most plausible fingering based on a barre-centric heuristic."""
@@ -33,6 +35,7 @@ class ChordDifficultyScorer:
         lowest_fret = min(notes_to_assign.values())
         counts_repeat = Counter(notes_to_assign.values())
         barred_fret = max(counts_repeat, key=counts_repeat.get)
+        self.barred_fret = barred_fret
 
         # Hard Rule: No notes can be below the barre fret
         if counts_repeat[barred_fret] >= 4 and any(f < barred_fret for f in notes_to_assign.values()):
@@ -76,6 +79,13 @@ class ChordDifficultyScorer:
         analysis_log = []
 
         # --- Ergonomic Penalties ---
+        # ADDED: Muted String Penalty
+        muted_string_count = self.fingering[:-1].count(-1)
+        if muted_string_count > 0:
+            muted_penalty = muted_string_count * self.WEIGHTS['MUTED_STRING']
+            score += muted_penalty
+            analysis_log.append(f"Muted Strings: {muted_string_count} -> Penalty +{muted_penalty:.0f}")
+
         fingers_used = len({d['finger'] for d in assignment.values()})
         score += fingers_used * self.WEIGHTS['FINGER_COUNT']
         analysis_log.append(f"Fingers used: {fingers_used}")
@@ -114,9 +124,11 @@ class ChordDifficultyScorer:
             score += barre_strings * self.WEIGHTS['BARRE_LENGTH']
             analysis_log.append(f"Barre length penalty ({barre_strings} extra strings)")
 
-        # Fret Inversion Penalty
-        sorted_notes = sorted(assignment.items(), key=lambda item: item[0])
+        # Fret Inversion Penalty TODO: too high value for barred chord with one high note
+        sorted_notes = sorted(assignment.items(), key=lambda item: item[0], reverse=True)
         for (s1, d1), (s2, d2) in combinations(sorted_notes, 2):
+            if d2['fret'] == self.barred_fret:
+                continue
             if d1['fret'] > d2['fret']:
                 inversion_penalty = (d1['fret'] - d2['fret']) * self.WEIGHTS['FRET_INVERSION']
                 score += inversion_penalty
