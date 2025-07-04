@@ -131,8 +131,8 @@ for chord_name, chord_notes_relroot in base_chords.items():
         for fg in fingerings:
             fg_with_top_complete = fg[:-1] + [5]
             fg_none_cands = set()
-            for first_none in range(5):
-                for second_none in range(first_none+1,6):
+            for first_none in range(4):
+                for second_none in range(first_none+1,5):
                     fg_with_top = fg_with_top_complete[:]
                     if not is_optional_bad_fingering(chord_name, fg_with_top, optional_notes, root):
                         fg_none_cands.add(tuple(fg_with_top))
@@ -150,6 +150,7 @@ for chord_name, chord_notes_relroot in base_chords.items():
                             fg_none_cands.add(tuple(fg_with_top))
                     else:
                         continue
+                    assert fg_with_top[-1] != None
             #if chord_name == 'minor' and top_to_root_interval == '1':
             #    print('NONENONE', fg_none_cands)
 
